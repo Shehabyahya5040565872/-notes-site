@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إضافة ملاحظة</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 20px;
+    }
+    label {
+      font-size: 18px;
+      margin-bottom: 5px;
+      text-align: center;
+    }
+    input, textarea {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: none;
+      background-color: #111;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+    textarea {
+      flex-grow: 1;
+      resize: none;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <form id="noteForm">
+    <label for="title">العنوان:</label>
+    <input type="text" id="title" required>
+
+    <label for="content">الملاحظة:</label>
+    <textarea id="content" required></textarea>
+  </form>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCMjDuKLXCrrv8YI8NbZAARYdIq4eP5WWU8",
+      authDomain: "notes-app-pwa-b2ed4.firebaseapp.com",
+      projectId: "notes-app-pwa-b2ed4",
+      storageBucket: "notes-app-pwa-b2ed4.appspot.com",
+      messagingSenderId: "32313666578",
+      appId: "1:32313666578:web:3c46c9a73c943233cf7ccb"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    const titleInput = document.getElementById("title");
+    const contentInput = document.getElementById("content");
+    let saved = false;
+
+    function saveNoteAndRedirect(user) {
+      const title = titleInput.value.trim();
+      const content = contentInput.value.trim();
+      if (title && content && !saved) {
+        const date = new Date().toISOString().split('T')[0];
+        const newNote = { title, content, date, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+
+        db.collection("users").doc(user.uid).collection("notes").add(newNote)
+          .then(() => {
+            localStorage.removeItem("note_draft");
+            saved = true;
+            setTimeout(() => {
+              window.location.href = "index.html";
+            }, 200);
+          })
+          .catch(error => console.error("خطأ في الحفظ:", error));
+      }
+    }
+
+    function saveDraft() {
+      const draft = {
+        title: titleInput.value,
+        content: contentInput.value
+      };
+      localStorage.setItem("note_draft", JSON.stringify(draft));
+    }
+
+    firebase.auth().onAuthStateChanged(user => {
+      if (!user) {
+        window.location.href = "auth.html";
+      } else {
+        titleInput.addEventListener("input", () => {
+          saveDraft();
+          saveNoteAndRedirect(user);
+        });
+
+        contentInput.addEventListener("input", () => {
+          saveDraft();
+          saveNoteAndRedirect(user);
+        });
+
+        window.addEventListener("DOMContentLoaded", () => {
+          const draft = JSON.parse(localStorage.getItem("note_draft") || "null");
+          if (draft) {
+            titleInput.value = draft.title || "";
+            contentInput.value = draft.content || "";
+          }
+        });
+
+        window.addEventListener("beforeunload", () => {
+          saveNoteAndRedirect(user);
+        });
+      }
+    });
+  </script>
+</body>
+</html>

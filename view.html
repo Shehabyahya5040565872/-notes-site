@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>عرض الملاحظة</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    .note-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 20px;
+      gap: 15px;
+    }
+    input, textarea {
+      background-color: #111;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 18px;
+      padding: 15px;
+      resize: none;
+    }
+    input {
+      height: 60px;
+    }
+    textarea {
+      flex-grow: 1;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="note-container">
+    <input type="text" id="noteTitle" placeholder="العنوان">
+    <textarea id="noteContent" placeholder="الملاحظة"></textarea>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCMjDuKLXCrrv8YI8NbZAARYdIq4eP5WWU8",
+      authDomain: "notes-app-pwa-b2ed4.firebaseapp.com",
+      projectId: "notes-app-pwa-b2ed4",
+      storageBucket: "notes-app-pwa-b2ed4.appspot.com",
+      messagingSenderId: "32313666578",
+      appId: "1:32313666578:web:3c46c9a73c943233cf7ccb"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    const titleInput = document.getElementById("noteTitle");
+    const contentInput = document.getElementById("noteContent");
+    let noteId = null;
+
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        window.location.href = "auth.html";
+        return;
+      }
+
+      const note = JSON.parse(localStorage.getItem("current_note"));
+      if (!note) {
+        alert("لا توجد ملاحظة للعرض.");
+        window.location.href = "index.html";
+        return;
+      }
+
+      titleInput.value = note.title;
+      contentInput.value = note.content;
+      noteId = note.id;
+
+      function autoSave() {
+        const updatedNote = {
+          title: titleInput.value,
+          content: contentInput.value,
+          date: note.date || new Date().toISOString().split('T')[0]
+        };
+
+        db.collection("users").doc(user.uid).collection("notes")
+          .where("title", "==", note.title)
+          .where("content", "==", note.content)
+          .limit(1)
+          .get()
+          .then(snapshot => {
+            if (!snapshot.empty) {
+              const docId = snapshot.docs[0].id;
+              db.collection("users").doc(user.uid).collection("notes")
+                .doc(docId).update(updatedNote);
+            }
+          });
+      }
+
+      titleInput.addEventListener("input", autoSave);
+      contentInput.addEventListener("input", autoSave);
+    });
+  </script>
+</body>
+</html>

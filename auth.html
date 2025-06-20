@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>تسجيل الدخول</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      background-color: #000;
+      color: white;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    input, button {
+      padding: 12px;
+      margin: 10px 0;
+      width: 100%;
+      max-width: 300px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+    }
+    input {
+      background: #111;
+      color: white;
+    }
+    button {
+      background: #333;
+      color: white;
+      cursor: pointer;
+    }
+    .container {
+      width: 100%;
+      max-width: 350px;
+      position: relative;
+    }
+    .hidden {
+      display: none;
+    }
+    .back-btn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      color: black;
+      font-size: 18px;
+      border: none;
+      border-radius: 50%;
+      width: 35px;
+      height: 35px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+    }
+    .password-wrapper {
+      position: relative;
+    }
+    .toggle-password {
+      position: absolute;
+      right: 84%;
+      top: 33%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>مرحباً بك</h2>
+    <div id="start-buttons">
+      <button onclick="showLoginForm()">تسجيل الدخول</button>
+      <button onclick="showRegisterStep1()">إنشاء حساب جديد</button>
+    </div>
+
+    <div id="login-form" class="hidden">
+      <button class="back-btn" onclick="goBack()">→</button>
+      <input type="tel" id="login-phone" placeholder="رقم الهاتف">
+      <div class="password-wrapper">
+        <input type="password" id="login-password" placeholder="كلمة المرور">
+        <button style="width:0px;" class="toggle-password" onclick="togglePassword('login-password', this)"><i class="fa-solid fa-eye"></i></button>
+      </div>
+      <button onclick="loginUser()">تسجيل الدخول</button>
+    </div>
+
+    <div id="register-step1" class="hidden">
+      <button class="back-btn" onclick="goBack()">→</button>
+      <input type="tel" id="register-phone" placeholder="رقم الهاتف">
+      <div class="password-wrapper">
+        <input type="password" id="register-password" placeholder="كلمة المرور">
+        <button style="width:0px;" class="toggle-password" onclick="togglePassword('register-password', this)"><i class="fa-solid fa-eye"></i></button>
+      </div>
+      <button onclick="goToStep2()">التالي</button>
+    </div>
+
+    <div id="register-step2" class="hidden">
+      <button class="back-btn" onclick="goBackToStep1()">→</button>
+      <div id="recaptcha-container"></div>
+      <button onclick="sendVerificationCode()" id="send-code-btn">إرسال رمز التحقق</button>
+      <span id="timer" class="hidden"></span>
+      <input type="text" id="verification-code" placeholder="رمز التحقق">
+      <button onclick="verifyCodeAndRegister()">تأكيد وإنهاء التسجيل</button>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCMjDuKLXCrrv8YI8NbZAARYdIq4eP5WWU8",
+      authDomain: "notes-app-pwa-b2ed4.firebaseapp.com",
+      projectId: "notes-app-pwa-b2ed4",
+      storageBucket: "notes-app-pwa-b2ed4.appspot.com",
+      messagingSenderId: "32313666578",
+      appId: "1:32313666578:web:3c46c9a73c943233cf7ccb"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    function showLoginForm() {
+      document.getElementById('start-buttons').classList.add('hidden');
+      document.getElementById('login-form').classList.remove('hidden');
+    }
+
+    function showRegisterStep1() {
+      document.getElementById('start-buttons').classList.add('hidden');
+      document.getElementById('register-step1').classList.remove('hidden');
+    }
+
+    function goToStep2() {
+      document.getElementById('register-step1').classList.add('hidden');
+      document.getElementById('register-step2').classList.remove('hidden');
+      window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
+    }
+
+    function goBack() {
+      document.getElementById('login-form').classList.add('hidden');
+      document.getElementById('register-step1').classList.add('hidden');
+      document.getElementById('register-step2').classList.add('hidden');
+      document.getElementById('start-buttons').classList.remove('hidden');
+    }
+
+    function goBackToStep1() {
+      document.getElementById('register-step2').classList.add('hidden');
+      document.getElementById('register-step1').classList.remove('hidden');
+    }
+
+    function togglePassword(id, btn) {
+      const input = document.getElementById(id);
+      const icon = btn.querySelector('i');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+      } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+      }
+    }
+
+    let confirmationResult;
+    let countdown;
+
+    function sendVerificationCode() {
+      const phone = document.getElementById('register-phone').value;
+      auth.signInWithPhoneNumber(phone, window.recaptchaVerifier)
+        .then(result => {
+          confirmationResult = result;
+          alert('تم إرسال الرمز');
+          startTimer();
+        }).catch(error => alert(error.message));
+    }
+
+    function startTimer() {
+      let seconds = 60;
+      const timerSpan = document.getElementById("timer");
+      const sendBtn = document.getElementById("send-code-btn");
+      sendBtn.disabled = true;
+      timerSpan.classList.remove("hidden");
+      countdown = setInterval(() => {
+        timerSpan.textContent = `أعد المحاولة خلال (${seconds}) ثانية`;
+        seconds--;
+        if (seconds < 0) {
+          clearInterval(countdown);
+          sendBtn.disabled = false;
+          timerSpan.classList.add("hidden");
+        }
+      }, 1000);
+    }
+
+    function verifyCodeAndRegister() {
+      const code = document.getElementById('verification-code').value;
+      confirmationResult.confirm(code)
+        .then(result => {
+          alert("تم إنشاء الحساب وتسجيل الدخول بنجاح");
+          window.location.href = "index.html";
+        }).catch(error => alert("رمز خاطئ: " + error.message));
+    }
+
+    function loginUser() {
+      alert("تم تسجيل الدخول مبدئيًا بناءً على رقم الهاتف فقط.");
+      window.location.href = "index.html";
+    }
+  </script>
+</body>
+</html>

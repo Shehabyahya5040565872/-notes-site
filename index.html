@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الملاحظات</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png">
+  <meta name="theme-color" content="#000000">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
+  <style>
+    :root {
+      --bg-color: #000;
+      --text-color: #fff;
+      --note-bg: #1a1a1a;
+      --note-text: #fff;
+      --input-bg: #222;
+      --btn-bg: #333;
+    }
+    body.light {
+      --bg-color: #f5f5f5;
+      --text-color: #000;
+      --note-bg: #fff;
+      --note-text: #000;
+      --input-bg: #ddd;
+      --btn-bg: #ccc;
+    }
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      margin: 0;
+    }
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    header h1 {
+      font-size: 24px;
+      margin: 0;
+    }
+    .search-input {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: none;
+      background-color: var(--input-bg);
+      color: var(--text-color);
+    }
+    .add-btn, .toggle-theme-btn {
+      background-color: var(--btn-bg);
+      color: var(--text-color);
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .notes-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .note-card {
+      position: relative;
+      background-color: var(--note-bg);
+      border-radius: 10px;
+      padding: 15px;
+      width: 250px;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      color: var(--note-text);
+    }
+    .note-card h3 {
+      margin: 0 0 5px;
+      font-size: 18px;
+    }
+    .note-card .date {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 8px;
+    }
+    .note-card p.content-preview {
+      color: inherit;
+      margin: 0;
+      font-size: 14px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .menu-btn {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: none;
+      border: none;
+      color: inherit;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    .menu-dropdown {
+      position: absolute;
+      top: 35px;
+      left: 8px;
+      background: var(--input-bg);
+      border-radius: 5px;
+      padding: 10px;
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      z-index: 999;
+    }
+    .menu-dropdown button {
+      background: none;
+      color: var(--text-color);
+      border: none;
+      text-align: right;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .dialog {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--input-bg);
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      display: none;
+    }
+    .dialog button {
+      margin: 10px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    .dialog .confirm {
+      background: #c00;
+      color: white;
+    }
+    .dialog .cancel {
+      background: #444;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>قائمة الملاحظات</h1>
+    <button class="toggle-theme-btn" onclick="toggleTheme()">🌓 تبديل المظهر</button>
+    <input type="text" id="searchInput" class="search-input" placeholder="ابحث عن ملاحظة بالعنوان...">
+    <button class="add-btn" onclick="location.href='add.html'">+ إضافة ملاحظة</button>
+  </header>
+
+  <div class="notes-container" id="notesContainer"></div>
+  <div class="dialog" id="deleteDialog">
+    <p>هل تريد حذف هذه الملاحظة؟</p>
+    <button class="confirm" id="confirmDelete">نعم</button>
+    <button class="cancel" id="cancelDelete">لا</button>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCMjDuKLXCrrv8YI8NbZAARYdIq4eP5WWU8",
+      authDomain: "notes-app-pwa-b2ed4.firebaseapp.com",
+      projectId: "notes-app-pwa-b2ed4",
+      storageBucket: "notes-app-pwa-b2ed4.appspot.com",
+      messagingSenderId: "32313666578",
+      appId: "1:32313666578:web:3c46c9a73c943233cf7ccb"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+    const notesContainer = document.getElementById("notesContainer");
+    const dialog = document.getElementById("deleteDialog");
+    const confirmBtn = document.getElementById("confirmDelete");
+    const cancelBtn = document.getElementById("cancelDelete");
+    const searchInput = document.getElementById("searchInput");
+
+    let notesData = [];
+    let selectedNoteId = null;
+    let selectedUser = null;
+
+    function renderNotes(notes) {
+      notesContainer.innerHTML = "";
+      notes.forEach(note => {
+        const card = document.createElement("div");
+        card.className = "note-card";
+        card.style.backgroundColor = note.bgColor || 'var(--note-bg)';
+        card.style.color = note.textColor || 'var(--note-text)';
+        card.innerHTML = `
+          <button class="menu-btn">⋮</button>
+          <div class="menu-dropdown">
+            <button class="delete">🗑 حذف</button>
+            <button class="pin">📌 ${note.pinned ? 'إلغاء التثبيت' : 'تثبيت'}</button>
+            <button class="color">🎨 تخصيص الألوان</button>
+          </div>
+          <h3>${note.title}</h3>
+          <div class="date">${note.date || ''}</div>
+          <p class="content-preview">${note.content}</p>
+        `;
+
+        const menuBtn = card.querySelector('.menu-btn');
+        const menuDropdown = card.querySelector('.menu-dropdown');
+
+        menuBtn.onclick = e => {
+          e.stopPropagation();
+          menuDropdown.style.display = menuDropdown.style.display === 'flex' ? 'none' : 'flex';
+        };
+
+        card.querySelector('.delete').onclick = () => {
+          selectedNoteId = note.id;
+          dialog.style.display = 'block';
+        };
+
+        card.querySelector('.pin').onclick = () => {
+          db.collection("users").doc(selectedUser).collection("notes").doc(note.id).update({ pinned: !note.pinned }).then(() => location.reload());
+        };
+
+        card.querySelector('.color').onclick = () => {
+          const bg = prompt("اختر لون الخلفية (مثلاً: #ffcc00)", note.bgColor || '');
+          const text = prompt("اختر لون النص (مثلاً: #000000)", note.textColor || '');
+          db.collection("users").doc(selectedUser).collection("notes").doc(note.id).update({ bgColor: bg, textColor: text }).then(() => location.reload());
+        };
+
+        card.onclick = () => {
+          localStorage.setItem("current_note", JSON.stringify(note));
+          window.location.href = "view.html";
+        };
+
+        notesContainer.appendChild(card);
+      });
+    }
+
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        window.location.href = "auth.html";
+        return;
+      }
+      selectedUser = user.uid;
+
+      db.collection("users")
+        .doc(user.uid)
+        .collection("notes")
+        .orderBy("pinned", "desc")
+        .orderBy("createdAt", "desc")
+        .get()
+        .then(snapshot => {
+          notesData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+          renderNotes(notesData);
+        });
+
+      confirmBtn.onclick = () => {
+        if (selectedNoteId) {
+          db.collection("users")
+            .doc(user.uid)
+            .collection("notes")
+            .doc(selectedNoteId)
+            .delete()
+            .then(() => location.reload());
+        }
+      };
+
+      cancelBtn.onclick = () => {
+        selectedNoteId = null;
+        dialog.style.display = "none";
+      };
+
+      searchInput.addEventListener("input", () => {
+        const query = searchInput.value.toLowerCase();
+        const filtered = notesData.filter(note => note.title.toLowerCase().includes(query));
+        renderNotes(filtered);
+      });
+    });
+
+    function toggleTheme() {
+      document.body.classList.toggle("light");
+      localStorage.setItem("theme", document.body.classList.contains("light") ? "light" : "dark");
+    }
+
+    if (localStorage.getItem("theme") === "light") {
+      document.body.classList.add("light");
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(reg => console.log("✅ Service Worker Registered"))
+          .catch(err => console.error("Service Worker Failed", err));
+      });
+    }
+  </script>
+</body>
+</html>
