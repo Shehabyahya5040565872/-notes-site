@@ -19,5 +19,5 @@ jobs:
       - name: Deploy to Firebase
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: |
-          firebase deploy --project my-notes-app-73977 --only hosting
+        run: firebase deploy --only hosting
+
